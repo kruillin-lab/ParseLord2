@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "NjbLenUteck=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\kruil\\Documents\\Projects\\ParseLord2\\ParseLord2.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\kruil\\.nuget\\packages\\dalamudpackager\\2.1.13\\dalamudpackager.2.1.13.nupkg.sha512",
+    "C:\\Users\\kruil\\.nuget\\packages\\ecommons\\3.1.0.12\\ecommons.3.1.0.12.nupkg.sha512"
+  ],
+  "logs": []
+}

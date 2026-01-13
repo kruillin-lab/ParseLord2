@@ -1,0 +1,14 @@
+C:\Users\kruil\Documents\Projects\ParseLord2\bin\Release\ParseLord2.json
+C:\Users\kruil\Documents\Projects\ParseLord2\bin\Release\ParseLord2.deps.json
+C:\Users\kruil\Documents\Projects\ParseLord2\bin\Release\ParseLord2.dll
+C:\Users\kruil\Documents\Projects\ParseLord2\bin\Release\ParseLord2.pdb
+C:\Users\kruil\Documents\Projects\ParseLord2\bin\Release\ECommons.dll
+C:\Users\kruil\Documents\Projects\ParseLord2\obj\x64\Release\ParseLord2.csproj.AssemblyReference.cache
+C:\Users\kruil\Documents\Projects\ParseLord2\obj\x64\Release\ParseLord2.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\kruil\Documents\Projects\ParseLord2\obj\x64\Release\ParseLord2.AssemblyInfoInputs.cache
+C:\Users\kruil\Documents\Projects\ParseLord2\obj\x64\Release\ParseLord2.AssemblyInfo.cs
+C:\Users\kruil\Documents\Projects\ParseLord2\obj\x64\Release\ParseLord2.csproj.CoreCompileInputs.cache
+C:\Users\kruil\Documents\Projects\ParseLord2\obj\x64\Release\ParseLord2.sourcelink.json
+C:\Users\kruil\Documents\Projects\ParseLord2\obj\x64\Release\ParseLord2.csproj.Up2Date
+C:\Users\kruil\Documents\Projects\ParseLord2\obj\x64\Release\ParseLord2.dll
+C:\Users\kruil\Documents\Projects\ParseLord2\obj\x64\Release\ParseLord2.pdb

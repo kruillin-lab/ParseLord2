@@ -1,0 +1,439 @@
+﻿using Dalamud.Game.Gui.Dtr;
+using Dalamud.Game.Text;
+using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Game.Text.SeStringHandling.Payloads;
+using Dalamud.Interface.Windowing;
+
+using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
+using Dalamud.Utility;
+using ECommons;
+using ECommons.Automation.LegacyTaskManager;
+using ECommons.DalamudServices;
+using ECommons.ExcelServices;
+using ECommons.GameHelpers;
+using ECommons.Logging;
+using Newtonsoft.Json.Linq;
+using PunishLib;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Threading.Tasks;
+using ParseLord2.API.Enum;
+using ParseLord2.Attributes;
+using ParseLord2.AutoRotation;
+using ParseLord2.Core;
+using ParseLord2.CustomComboNS;
+using ParseLord2.CustomComboNS.Functions;
+using ParseLord2.Data;
+using ParseLord2.Data.Conflicts;
+using ParseLord2.Services;
+using ParseLord2.Services.IPC_Subscriber;
+using ParseLord2.Services.IPC;
+using ParseLord2.Window;
+using ParseLord2.Window.Tabs;
+using ParseLord2.Services.ActionRequestIPC;
+namespace ParseLord2;
+
+/// <summary> Main plugin implementation. </summary>
+public sealed partial class ParseLord2 : IDalamudPlugin
+    {
+        public string PluginName => "ParseLord2";
+    internal static TaskManager? TM;
+    internal readonly ConfigWindow ConfigWindow;
+    private readonly MajorChangesWindow _majorChangesWindow;
+    private readonly TargetHelper TargetHelper;
+    internal static ParseLord2? P;
+    private readonly WindowSystem ws;
+    private static readonly SocketsHttpHandler httpHandler = new()
+    {
+        AutomaticDecompression = DecompressionMethods.All,
+    };
+    private readonly HttpClient httpClient = new(httpHandler) { Timeout = TimeSpan.FromSeconds(5) };
+    private readonly IDtrBarEntry DtrBarEntry;
+    internal Provider IPC;
+    internal Search IPCSearch = null!;
+    internal UIHelper UIHelper = null!;
+    internal ActionRetargeting ActionRetargeting = null!;
+    internal MovementHook MoveHook;
+
+    private readonly TextPayload starterMotd = new("[Wrath Message of the Day] ");
+    private static Job? jobID;
+    private static bool _enteringInstancedContent;
+    private static bool EnteringInstancedContent
+    {
+        get
+        {
+            return _enteringInstancedContent;
+        }
+        set
+        {
+            if (_enteringInstancedContent != value)
+            {
+                if (Service.Configuration.RotationConfig.EnableInInstance && value)
+                    Service.Configuration.RotationConfig.Enabled = true;
+
+                if (Service.Configuration.RotationConfig.DisableAfterInstance && !value)
+                    Service.Configuration.RotationConfig.Enabled = false;
+
+                _enteringInstancedContent = value;
+            }
+        }
+    }
+
+    public static readonly List<Job> DisabledJobsPVE =
+    [
+        //Job.ADV,
+        //Job.AST,
+        //Job.BLM,
+        //Job.BLU,
+        //Job.BRD,
+        //Job.DNC,
+        //Job.DOL,
+        //Job.DRG,
+        //Job.DRK,
+        //Job.GNB,
+        //Job.MCH,
+        //Job.MNK,
+        //Job.NIN,
+        //Job.PCT,
+        //Job.PLD,
+        //Job.RDM,
+        //Job.RPR,
+        //Job.SAM,
+        //Job.SCH,
+        //Job.SGE,
+        //Job.SMN,
+        //Job.VPR,
+        //Job.WAR,
+        //Job.WHM
+    ];
+
+    public static readonly List<Job> DisabledJobsPVP = [];
+
+    public static Job? JobID
+    {
+        get => jobID;
+        private set
+        {
+            if (jobID != value && value != null)
+                UpdateCaches(jobID != null, false, jobID == null);
+            jobID = value;
+        }
+    }
+
+    public static void UpdateCaches
+        (bool onJobChange, bool onTerritoryChange, bool firstRun)
+    {
+        WrathOpener.CurrentOpener?.CacheReady = false;
+        WrathOpener.CurrentOpener?.ResetOpener(); //Clears opener values, just in case
+        ActionRequestIPCProvider.ResetAllBlacklist();
+        ActionRequestIPCProvider.ResetAllRequests();
+        TM.DelayNext(1000);
+        TM.Enqueue(() =>
+        {
+            if (!Player.Available)
+                return false;
+
+            WrathOpener.SelectOpener();
+            P.ActionRetargeting.ClearCachedRetargets();
+            if (onJobChange)
+                PvEFeatures.OpenToCurrentJob(true);
+            if (onJobChange || firstRun)
+            {
+                Service.ActionReplacer.UpdateFilteredCombos();
+                Svc.Framework.RunOnTick(Provider.BuildCachesAction());
+                P.IPCSearch.UpdateActiveJobPresets();
+                P.IPC.Leasing.SuspendLeases(CancellationReason.JobChanged);
+            }
+
+            if (onTerritoryChange || firstRun)
+            {
+                if (Content.InstanceContentRow?.RowId > 0)
+                    EnteringInstancedContent = true;
+                else if (Content.InstanceContentRow?.RowId == 0)
+                    EnteringInstancedContent = false;
+            }
+
+            return true;
+        }, "UpdateCaches");
+    }
+
+    /// <summary> Initializes a new instance of the <see cref="ParseLord2"/> class. </summary>
+    /// <param name="pluginInterface"> Dalamud plugin interface. </param>
+    public ParseLord2(IDalamudPluginInterface pluginInterface)
+    {
+        P = this;
+        pluginInterface.Create<Service>();
+        ECommonsMain.Init(pluginInterface, this, Module.All);
+        PunishLibMain.Init(pluginInterface, "ParseLord2");
+
+        ActionRequestIPCProvider.Initialize();
+
+        TM = new TaskManager();
+        RemoveNullAutos(); 
+        Service.Configuration = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        Service.Address = new AddressResolver();
+        Service.Address.Setup(Svc.SigScanner);
+        MoveHook = new();
+        PresetStorage.Init();
+
+        Service.ComboCache = new CustomComboCache();
+        Service.ActionReplacer = new ActionReplacer();
+        ActionRetargeting = new ActionRetargeting();
+        ActionWatching.Enable();
+        IPC = Provider.Init();
+        ConflictingPluginsChecks.Begin();
+
+        ConfigWindow = new ConfigWindow();
+        _majorChangesWindow = new MajorChangesWindow();
+        TargetHelper = new();
+        ws = new();
+        ws.AddWindow(ConfigWindow);
+        ws.AddWindow(_majorChangesWindow);
+        ws.AddWindow(TargetHelper);
+        
+        Configuration.ConfigChanged += DebugFile.LoggingConfigChanges;
+
+        Svc.PluginInterface.UiBuilder.Draw += ws.Draw;
+        Svc.PluginInterface.UiBuilder.OpenMainUi += OnOpenMainUi;
+        Svc.PluginInterface.UiBuilder.OpenConfigUi += OnOpenConfigUi;
+
+        RegisterCommands();
+
+        DtrBarEntry ??= Svc.DtrBar.Get("Wrath Combo");
+        DtrBarEntry.OnClick = (_) =>
+        {
+            ToggleAutoRotation(!Service.Configuration.RotationConfig.Enabled);
+        };
+        DtrBarEntry.Tooltip = new SeString(
+        new TextPayload("Click to toggle Wrath Combo's Auto-Rotation.\n"),
+        new TextPayload("Disable this icon in /xlsettings -> Server Info Bar"));
+
+        Svc.ClientState.Login += PrintLoginMessage;
+        if (Svc.ClientState.IsLoggedIn) ResetFeatures();
+
+        Svc.Framework.Update += OnFrameworkUpdate;
+        Svc.ClientState.TerritoryChanged += ClientState_TerritoryChanged;
+        
+        PresetStorage.HandleDuplicatePresets();
+        PresetStorage.HandleCurrentConflicts();
+        CustomComboFunctions.TimerSetup();
+
+        // Starts Retarget list cleaning process after a delay
+        Svc.Framework.RunOnTick(ActionRetargeting.ClearOldRetargets,
+            TimeSpan.FromSeconds(60));
+
+#if DEBUG
+        ConfigWindow.IsOpen = true;
+        Svc.Framework.RunOnTick(() =>
+        {
+            if (Service.Configuration.OpenToCurrentJob && Player.Available)
+                HandleOpenCommand([""], forceOpen:true);
+        });
+#endif
+    }
+
+    private void RemoveNullAutos()
+    {
+        try
+        {
+            var save = false;
+            if (!Svc.PluginInterface.ConfigFile.Exists) return;
+
+            var json = JObject.Parse(File.ReadAllText(Svc.PluginInterface.ConfigFile.FullName));
+            if (json["AutoActions"] is JObject autoActions)
+            {
+                var clone = autoActions.JSONClone();
+                foreach (var a in clone)
+                {
+                    if (a.Key == "$type")
+                        continue;
+
+                    if (Enum.TryParse(typeof(Preset), a.Key, out _))
+                        continue;
+
+                    Svc.Log.Debug($"Couldn't find {a.Key}");
+                    autoActions[a.Key].Parent.Remove();
+                    save = true;
+                }
+            }
+            if (save)
+                File.WriteAllText(Svc.PluginInterface.ConfigFile.FullName, json.ToString());
+        }
+        catch (Exception e)
+        {
+            e.Log();
+        }
+    }
+
+    private void ClientState_TerritoryChanged(ushort obj)
+    {
+        UpdateCaches(false, true, false);
+
+        Task.Run(StancePartner.CheckForIPCControl);
+    }
+
+    public const string OptionControlledByIPC =
+        "(being overwritten by another plugin, check the setting in /wrath)";
+
+    private void OnFrameworkUpdate(IFramework framework)
+    {
+        try
+        {
+            if (Player.Object is not null)
+            {
+                JobID = Player.Job;
+                CustomComboFunctions.IsMoving(); //Hacky workaround to ensure it's always running
+            }
+
+            BlueMageService.PopulateBLUSpells();
+            TargetHelper.Draw();
+            AutoRotationController.Run();
+            Configuration.ProcessSaveQueue();
+
+            Service.Configuration.SetActionChanging();
+
+            if (Player.Available && Player.IsDead)
+                ActionRetargeting.Retargets.Clear();
+
+            PresetStorage.HandleDuplicatePresets();
+            PresetStorage.HandleCurrentConflicts();
+
+            // Skip the IPC checking if hidden
+            if (DtrBarEntry.UserHidden) return;
+
+            var autoOn = IPC.GetAutoRotationState();
+            var icon = new IconPayload(autoOn
+                ? BitmapFontIcon.SwordUnsheathed
+                : BitmapFontIcon.SwordSheathed);
+
+            var text = autoOn ? ": On" : ": Off";
+            if (!Service.Configuration.ShortDTRText && autoOn)
+                text += $" ({P.IPCSearch.ActiveJobPresets} active)";
+            var ipcControlledText =
+                P.UIHelper.AutoRotationStateControlled() is not null
+                    ? " (Locked)"
+                    : "";
+
+            var payloadText = new TextPayload(text + ipcControlledText);
+            DtrBarEntry.Text = new SeString(icon, payloadText);
+        }
+        catch(Exception ex)
+        {
+            ex.Log($"Pls no crash game ty");
+        }
+    }
+
+    private static void ResetFeatures()
+    {
+        // Enumerable.Range is a start and count, not a start and end.
+        // Enumerable.Range(Start, Count)
+        Service.Configuration.ResetFeatures("1.0.0.6_DNCRework", Enumerable.Range(4000, 150).ToArray());
+        Service.Configuration.ResetFeatures("1.0.0.11_DRKRework", Enumerable.Range(5000, 200).ToArray()); 
+        Service.Configuration.ResetFeatures("1.0.1.11_RDMRework", Enumerable.Range(13000, 999).ToArray());
+        Service.Configuration.ResetFeatures("1.0.2.3_NINRework", Enumerable.Range(10000, 100).ToArray());
+    }
+
+    private void DrawUI()
+    {
+        _majorChangesWindow.Draw();
+        ConfigWindow.Draw();
+    }
+
+    private void PrintLoginMessage()
+    {
+        Task.Delay(TimeSpan.FromSeconds(5)).ContinueWith(_ => ResetFeatures());
+
+        if (!Service.Configuration.HideMessageOfTheDay)
+            Task.Delay(TimeSpan.FromSeconds(3)).ContinueWith(_ => PrintMotD());
+    }
+
+    private void PrintMotD()
+    {
+        try
+        {
+            var basicMessage = $"Welcome to ParseLord2 v{this.GetType().Assembly
+                .GetName().Version}!";
+            using var motd =
+                httpClient.GetAsync("https://raw.githubusercontent.com/PunishXIV/ParseLord2/main/res/motd.txt").Result;
+            motd.EnsureSuccessStatusCode();
+            var data = motd.Content.ReadAsStringAsync().Result;
+            List<Payload> payloads =
+            [
+                starterMotd,
+                EmphasisItalicPayload.ItalicsOn,
+                string.IsNullOrEmpty(data) ? new TextPayload(basicMessage) : new TextPayload(data.Trim()),
+                EmphasisItalicPayload.ItalicsOff
+            ];
+
+            Svc.Chat.Print(new XivChatEntry
+            {
+                Message = new SeString(payloads),
+                Type = XivChatType.Echo
+            });
+        }
+
+        catch (Exception ex)
+        {
+            // Soft-fail: don't spam errors if GitHub raw is unavailable (404/offline/etc).
+            var basicMessage = $"Welcome to ParseLord2 v{this.GetType().Assembly.GetName().Version}!";
+            Svc.Log.Warning(ex, "MotD unavailable; showing fallback message.");
+            Svc.Chat.Print(new XivChatEntry
+            {
+                Message = new SeString(starterMotd, new TextPayload(basicMessage)),
+                Type = XivChatType.Echo
+            });
+        }
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Used for non-static only window initialization")]
+    public string Name => "Wrath Combo";
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        ActionRetargeting.Dispose();
+        ConfigWindow.Dispose();
+        Debug.Dispose();
+
+        // Try to force a config save if there are some pending
+        if (Configuration.SaveQueue.Count > 0)
+            lock (Configuration.SaveQueue)
+            {
+                Configuration.SaveQueue.Clear();
+                Service.Configuration.Save();
+                Configuration.ProcessSaveQueue();
+            }
+
+        ws.RemoveAllWindows();
+        Svc.DtrBar.Remove("Wrath Combo");
+        Configuration.ConfigChanged -= DebugFile.LoggingConfigChanges;
+        Svc.Framework.Update -= OnFrameworkUpdate;
+        Svc.ClientState.TerritoryChanged -= ClientState_TerritoryChanged;
+        Svc.PluginInterface.UiBuilder.OpenConfigUi -= OnOpenConfigUi;
+        Svc.PluginInterface.UiBuilder.Draw -= DrawUI;
+        
+        Service.ActionReplacer.Dispose();
+        Service.ComboCache.Dispose();
+        ActionWatching.Dispose();
+        CustomComboFunctions.TimerDispose();
+        IPC.Dispose();
+        MoveHook?.Dispose();
+
+        ConflictingPluginsChecks.Dispose();
+        AllStaticIPCSubscriptions.Dispose();
+        Svc.ClientState.Login -= PrintLoginMessage;
+        ECommonsMain.Dispose();
+        P = null;
+    }
+
+    private void OnOpenMainUi() =>
+        HandleOpenCommand(forceOpen: true);
+
+    internal void OnOpenConfigUi() =>
+        HandleOpenCommand(tab: OpenWindow.Settings, forceOpen: true);
+}

@@ -1,0 +1,20 @@
+{
+  "Author": "Luis",
+  "Name": "ParseLord2",
+  "InternalName": "ParseLord2",
+  "DalamudApiLevel": 14,
+  "Punchline": "Custom combos + auto-rotation with deep preset control.",
+  "Description": "Custom combos and auto-rotation with deep preset control and per-job settings.",
+  "RepoUrl": "https://github.com/PunishXIV/ParseLord2",
+  "IconUrl": "https://s3.puni.sh/media/plugin/60/icon-2bwhkn3zf1f.png",
+  "Changelog": "Please check the project's GitHub or Discord for a full changelog.",
+  "Tags": [
+    "combo",
+    "parselord2",
+    "auto",
+    "autorotation",
+    "rotation",
+    "pve",
+    "pvp"
+  ]
+}

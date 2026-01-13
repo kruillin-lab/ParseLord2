@@ -1,0 +1,109 @@
+<?xml version='1.0' encoding='utf-8'?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Authors>Team Wrath</Authors>
+    <Company>-</Company>
+    <Version>1.0.3.3</Version>
+    <Description>XIVCombo for very lazy players</Description>
+    <Copyright>Copyleft attick 2021 thanks attick UwU</Copyright>
+    <PackageProjectUrl>https://github.com/PunishXIV/ParseLord2</PackageProjectUrl>
+    <PackageId>ParseLord2</PackageId>
+    <Product>ParseLord2</Product>
+    </PropertyGroup>
+  <PropertyGroup>
+    <AssemblyName>ParseLord2</AssemblyName>
+    <TargetFramework>net10.0-windows7.0</TargetFramework>
+    <Configurations>Debug;Release</Configurations>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <NoWarn>CS1591</NoWarn>
+    <LangVersion>preview</LangVersion>
+    <Platforms>x64</Platforms>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    </PropertyGroup>
+  <PropertyGroup>
+    <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+    <DalamudDevPlugins>$(appdata)\XIVLauncher\devPlugins\ParseLord2\</DalamudDevPlugins>
+    <DalamudPluginPath>$(appdata)\XIVLauncher\installedPlugins\ParseLord2\$(version)</DalamudPluginPath>
+    </PropertyGroup>
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+    <DalamudLibPath>$(HOME)/.xlcore/dalamud/Hooks/dev/</DalamudLibPath>
+    <DalamudDevPlugins>$(HOME)/.xlcore/devPlugins/</DalamudDevPlugins>
+    </PropertyGroup>
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <DalamudLibPath>$(HOME)/Library/Application Support/XIV on Mac/dalamud/Hooks/dev/</DalamudLibPath>
+    <DalamudDevPlugins>$(HOME)/Library/Application Support/XIV on Mac/devPlugins/</DalamudDevPlugins>
+    </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <OutputPath>$(DalamudDevPlugins)</OutputPath>
+    </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <OutputPath>bin\Release</OutputPath>
+    </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Optimize>True</Optimize>
+    </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="DalamudPackager" Version="2.1.13" />
+    </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="ECommons" Version="3.1.0.12" />
+    </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Dalamud">
+      <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
+      <Private>False</Private>
+      </Reference>
+    <Reference Include="FFXIVClientStructs">
+      <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
+      <Private>False</Private>
+      </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(DalamudLibPath)Newtonsoft.Json.dll</HintPath>
+      <Private>False</Private>
+      </Reference>
+    <Reference Include="Dalamud.Bindings.ImGui">
+      <HintPath>$(DalamudLibPath)Dalamud.Bindings.ImGui.dll</HintPath>
+      <Private>False</Private>
+      </Reference>
+    <Reference Include="Dalamud.Bindings.ImPlot">
+      <HintPath>$(DalamudLibPath)Dalamud.Bindings.ImPlot.dll</HintPath>
+      <Private>False</Private>
+      </Reference>
+    <Reference Include="Dalamud.Bindings.ImGuizmo">
+      <HintPath>$(DalamudLibPath)Dalamud.Bindings.ImGuizmo.dll</HintPath>
+      <Private>False</Private>
+      </Reference>
+    <Reference Include="Lumina">
+      <HintPath>$(DalamudLibPath)Lumina.dll</HintPath>
+      <Private>False</Private>
+      </Reference>
+    <Reference Include="Lumina.Excel">
+      <HintPath>$(DalamudLibPath)Lumina.Excel.dll</HintPath>
+      <Private>False</Private>
+      </Reference>
+    <Reference Include="InteropGenerator.Runtime">
+      <HintPath>$(DalamudLibPath)InteropGenerator.Runtime.dll</HintPath>
+      <Private>false</Private>
+      </Reference>
+    </ItemGroup>
+  <ItemGroup>
+    <None Update="ParseLord2.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+  <PropertyGroup>
+    <DevPluginDir>C:\Users\kruil\AppData\Roaming\XIVLauncher\devPlugins\ParseLord2</DevPluginDir>
+    </PropertyGroup>
+  <Target Name="CopyToXIVLauncherDevPlugins" AfterTargets="Build">
+    <ItemGroup>
+      <DevPluginFiles Include="$(TargetPath)" />
+      <DevPluginFiles Include="$(MSBuildProjectDirectory)\*.json" />
+      </ItemGroup>
+    <MakeDir Directories="$(DevPluginDir)" Condition="!Exists('$(DevPluginDir)')" />
+    <Copy SourceFiles="@(DevPluginFiles)" DestinationFolder="$(DevPluginDir)" SkipUnchangedFiles="true" />
+    </Target>
+  </Project>
