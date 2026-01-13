@@ -1,0 +1,179 @@
+using ECommons.ImGuiMethods;
+using ParseLord2.CustomComboNS.Functions;
+using ParseLord2.Extensions;
+using ParseLord2.Window.Functions;
+using static ParseLord2.Window.Functions.UserConfig;
+namespace ParseLord2.Combos.PvE;
+
+internal partial class SAM
+{
+    internal static class Config
+    {
+        internal static void Draw(Preset preset)
+        {
+            switch (preset)
+            {
+                case Preset.SAM_ST_Opener:
+                    DrawBossOnlyChoice(SAM_Balance_Content);
+                    ImGui.NewLine();
+                    DrawSliderInt(0, 13, SAM_Opener_PrePullDelay,
+                        $"Delay from first {MeikyoShisui.ActionName()} to next step. (seconds)\nDelay is enforced by replacing your button with Savage Blade.");
+                    break;
+
+                case Preset.SAM_ST_CDs_UseHiganbana:
+                    DrawSliderInt(0, 100, SAM_ST_HiganbanaBossOption,
+                        "Bosses Only. Stop using at Enemy HP %.");
+
+                    DrawSliderInt(0, 100, SAM_ST_HiganbanaBossAddsOption,
+                        "Boss Encounter Non Bosses. Stop using at Enemy HP %.");
+
+                    DrawSliderInt(0, 100, SAM_ST_HiganbanaTrashOption,
+                        "Non boss encounter. Stop using at Enemy HP %.");
+
+                    ImGui.Indent();
+                    DrawSliderInt(0, 15, SAM_ST_HiganbanaRefresh,
+                        $"Seconds remaining before reapplying {Higanbana.ActionName()}. Set to Zero to disable this check.");
+                    ImGui.Unindent();
+                    break;
+
+                case Preset.SAM_ST_CDs_Senei:
+                    DrawAdditionalBoolChoice(SAM_ST_CDs_Guren,
+                        "Guren Option", $"Adds {Guren.ActionName()} to the rotation if Senei is not unlocked.");
+                    break;
+
+                case Preset.SAM_ST_CDs_OgiNamikiri:
+                    DrawAdditionalBoolChoice(SAM_ST_CDs_OgiNamikiri_Movement,
+                        "Movement Option", $"Adds {OgiNamikiri.ActionName()} and {KaeshiNamikiri.ActionName()} when you're not moving.");
+                    break;
+
+                case Preset.SAM_ST_Shinten:
+                    DrawSliderInt(50, 85, SAM_ST_KenkiOvercapAmount,
+                        "Set the Kenki overcap amount for ST combos.");
+
+                    DrawSliderInt(0, 100, SAM_ST_ExecuteThreshold,
+                        "HP percent threshold to not save Kenki");
+                    break;
+
+                case Preset.SAM_ST_GekkoCombo:
+                    DrawAdditionalBoolChoice(SAM_Gekko_KenkiOvercap,
+                        "Kenki Overcap Protection", "Spends Kenki when at the set value or above.");
+
+                    if (SAM_Gekko_KenkiOvercap)
+                        DrawSliderInt(25, 100, SAM_Gekko_KenkiOvercapAmount,
+                            "Kenki Amount", sliderIncrement: SliderIncrements.Fives);
+                    break;
+
+                case Preset.SAM_ST_KashaCombo:
+                    DrawAdditionalBoolChoice(SAM_Kasha_KenkiOvercap,
+                        "Kenki Overcap Protection", "Spends Kenki when at the set value or above.");
+
+                    if (SAM_Kasha_KenkiOvercap)
+                        DrawSliderInt(25, 100, SAM_Kasha_KenkiOvercapAmount,
+                            "Kenki Amount", sliderIncrement: SliderIncrements.Fives);
+                    break;
+
+                case Preset.SAM_ST_YukikazeCombo:
+                    DrawAdditionalBoolChoice(SAM_Yukaze_Gekko,
+                        "Add Gekko Combo", "Adds Gekko combo when applicable.");
+
+                    DrawAdditionalBoolChoice(SAM_Yukaze_Kasha,
+                        "Add Kasha Combo", "Adds Kasha combo when applicable.");
+
+                    DrawAdditionalBoolChoice(SAM_Yukaze_KenkiOvercap,
+                        "Kenki Overcap Protection", "Spends Kenki when at the set value or above.");
+
+                    if (SAM_Yukaze_KenkiOvercap)
+                        DrawSliderInt(25, 100, SAM_Yukaze_KenkiOvercapAmount,
+                            "Kenki Amount", sliderIncrement: SliderIncrements.Fives);
+                    break;
+
+                case Preset.SAM_ST_Meditate:
+                    ImGui.SetCursorPosX(48f.Scale());
+                    DrawSliderFloat(0, 3, SAM_ST_MeditateTimeStill,
+                        " Stationary Delay Check (in seconds):", decimals: 1);
+                    break;
+
+                case Preset.SAM_ST_ComboHeals:
+                    DrawSliderInt(0, 100, SAM_STSecondWindHPThreshold,
+                        $"{Role.SecondWind.ActionName()} HP percentage threshold");
+
+                    DrawSliderInt(0, 100, SAM_STBloodbathHPThreshold,
+                        $"{Role.Bloodbath.ActionName()} HP percentage threshold");
+                    break;
+
+                case Preset.SAM_AoE_Kyuten:
+                    DrawSliderInt(25, 85, SAM_AoE_KenkiOvercapAmount,
+                        "Set the Kenki overcap amount for AOE combos.");
+                    break;
+
+                case Preset.SAM_AoE_OkaCombo:
+                    DrawAdditionalBoolChoice(SAM_Oka_KenkiOvercap,
+                        "Kenki Overcap Protection", "Spends Kenki when at the set value or above.");
+
+                    if (SAM_Oka_KenkiOvercap)
+                        DrawSliderInt(25, 100, SAM_Oka_KenkiOvercapAmount,
+                            "Kenki Amount", sliderIncrement: SliderIncrements.Fives);
+                    break;
+
+                case Preset.SAM_AoE_MangetsuCombo:
+                    DrawAdditionalBoolChoice(SAM_Mangetsu_Oka,
+                        "Add Oka Combo", "Adds Oka combo when applicable.");
+
+                    DrawAdditionalBoolChoice(SAM_Mangetsu_KenkiOvercap,
+                        "Kenki Overcap Protection", "Spends Kenki when at the set value or above.");
+
+                    if (SAM_Mangetsu_KenkiOvercap)
+                        DrawSliderInt(25, 100, SAM_Mangetsu_KenkiOvercapAmount,
+                            "Kenki Amount", sliderIncrement: SliderIncrements.Fives);
+                    break;
+
+                case Preset.SAM_AoE_ComboHeals:
+                    DrawSliderInt(0, 100, SAM_AoESecondWindHPThreshold,
+                        $"{Role.SecondWind.ActionName()} HP percentage threshold");
+
+                    DrawSliderInt(0, 100, SAM_AoEBloodbathHPThreshold,
+                        $"{Role.Bloodbath.ActionName()} HP percentage threshold");
+                    break;
+            }
+        }
+
+        #region Variables
+
+        public static UserInt
+            SAM_Balance_Content = new("SAM_Balance_Content", 1),
+            SAM_Opener_PrePullDelay = new("SAM_Opener_PrePullDelay", 13),
+            SAM_ST_HiganbanaBossOption = new("SAM_ST_HiganbanaBossOption"),
+            SAM_ST_HiganbanaBossAddsOption = new("SAM_ST_HiganbanaBossAddsOption", 0),
+            SAM_ST_HiganbanaTrashOption = new("SAM_ST_HiganbanaTrashOption", 0),
+            SAM_ST_HiganbanaRefresh = new("SAM_ST_Higanbana_Refresh", 15),
+            SAM_ST_KenkiOvercapAmount = new("SAM_ST_KenkiOvercapAmount", 65),
+            SAM_ST_ExecuteThreshold = new("SAM_ST_ExecuteThreshold", 1),
+            SAM_STSecondWindHPThreshold = new("SAM_STSecondWindThreshold", 40),
+            SAM_STBloodbathHPThreshold = new("SAM_STBloodbathThreshold", 30),
+            SAM_AoE_KenkiOvercapAmount = new("SAM_AoE_KenkiOvercapAmount", 50),
+            SAM_AoESecondWindHPThreshold = new("SAM_AoESecondWindThreshold", 40),
+            SAM_AoEBloodbathHPThreshold = new("SAM_AoEBloodbathThreshold", 30),
+            SAM_Gekko_KenkiOvercapAmount = new("SAM_Gekko_KenkiOvercapAmount", 65),
+            SAM_Kasha_KenkiOvercapAmount = new("SAM_Kasha_KenkiOvercapAmount", 65),
+            SAM_Yukaze_KenkiOvercapAmount = new("SAM_Yukaze_KenkiOvercapAmount", 65),
+            SAM_Oka_KenkiOvercapAmount = new("SAM_Oka_KenkiOvercapAmount", 50),
+            SAM_Mangetsu_KenkiOvercapAmount = new("SAM_Mangetsu_KenkiOvercapAmount", 50);
+
+        public static UserBool
+            SAM_Gekko_KenkiOvercap = new("SAM_Gekko_KenkiOvercap"),
+            SAM_Kasha_KenkiOvercap = new("SAM_Kasha_KenkiOvercap"),
+            SAM_Yukaze_KenkiOvercap = new("SAM_Yukaze_KenkiOvercap"),
+            SAM_Yukaze_Gekko = new("SAM_Yukaze_Gekko"),
+            SAM_Yukaze_Kasha = new("SAM_Yukaze_Kasha"),
+            SAM_Mangetsu_Oka = new("SAM_Mangetsu_Oka"),
+            SAM_ST_CDs_Guren = new("SAM_ST_CDs_Guren"),
+            SAM_ST_CDs_OgiNamikiri_Movement = new("SAM_ST_CDs_OgiNamikiri_Movement"),
+            SAM_Oka_KenkiOvercap = new("SAM_Oka_KenkiOvercap"),
+            SAM_Mangetsu_KenkiOvercap = new("SAM_Mangetsu_KenkiOvercap");
+
+        public static UserFloat
+            SAM_ST_MeditateTimeStill = new("SAM_ST_MeditateTimeStill", 2.5f);
+
+        #endregion
+    }
+}
